@@ -1,0 +1,83 @@
+services:
+  # ----------------------------------------------------
+  # 1. FastAPI Marketing Assistant Agent (Builds from your Dockerfile)
+  # ----------------------------------------------------
+  marketing_agent:
+    build:
+      context: .
+      dockerfile: Dockerfile  # Assumes you have a Dockerfile in the root
+    container_name: marketing-assistant
+    restart: unless-stopped
+    
+    # Expose the API/Frontend to your local machine (host:container)
+    ports:
+      - "8000:8000"
+      
+    # Map the current directory, static files, and templates for live development
+    volumes:
+      - .:/app
+      
+    # Pass environment variables needed by your Python app (DB URLs, API Keys)
+    environment:
+      # LLM API Key (Replace with your actual key or use a .env file)
+      GEMINI_API_KEY: "${GEMINI_API_KEY}" 
+      
+      # Connection details for the Qdrant service
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      
+      # Database connection URL for the Postgres service
+      # NOTE: Uses the service name 'postgres' and the environment variables set below
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      
+    # Ensures the agent service waits until Postgres and Qdrant are ready
+    depends_on:
+      - postgres
+      - qdrant
+
+  # ----------------------------------------------------
+  # 2. PostgreSQL Database (Official Image)
+  # ----------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres-db
+    restart: unless-stopped
+    
+    # Expose the database port (optional, but useful for external tools like PgAdmin)
+    ports:
+      - "5432:5432"
+      
+    # Environment variables for initial setup and credentials
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      
+    # Volume for data persistence: maps local folder to container's data folder
+    volumes:
+      - ./data/postgres_data:/var/lib/postgresql/data
+      
+  # ----------------------------------------------------
+  # 3. Qdrant Vector Database (Official Image)
+  # ----------------------------------------------------
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant-db
+    restart: unless-stopped
+    
+    # Expose Qdrant's REST/HTTP port (6333) and gRPC port (6334)
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+      
+    # Volume for vector persistence: maps local folder to container's storage folder
+    volumes:
+      - ./data/qdrant_storage:/qdrant/storage
+
+# Define named volumes if you prefer them over bind mounts (Optional but cleaner)
+# volumes:
+#   postgres_data:
+#   qdrant_storage:

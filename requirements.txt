@@ -1,0 +1,19 @@
+# --- FastAPI & Web ---
+fastapi
+uvicorn[standard]
+jinja2
+python-multipart  # For processing HTML form data
+
+# --- RAG Core ---
+langchain
+langchain-tavily
+langchain-google-genai 
+tiktoken                  # For token counting
+
+# --- Vector Database Client ---
+qdrant-client             # Client library to connect to the Qdrant service
+
+# --- SQL Database Client ---
+asyncpg                   # Fast, asynchronous PostgreSQL driver
+sqlmodel                  # (Recommended ORM) Based on SQLAlchemy and Pydantic for clean, modern Python DB models
+#psycopg2-binary           # Fallback/standard PostgreSQL driver
