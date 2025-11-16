@@ -23,6 +23,9 @@ async def create_db_and_tables():
     print("Attempting to initialize database tables...")
     async with engine.begin() as conn:
         # Runs the synchronous SQLModel.metadata.create_all command within an async context
+        
+        #must use if any change in schema happens until alembic is used
+        #await conn.run_sync(SQLModel.metadata.drop_all)
         await conn.run_sync(SQLModel.metadata.create_all)
     print("Database tables initialized successfully.")
 
