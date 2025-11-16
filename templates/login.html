@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 400px; margin: 60px auto;">
+        <h2 style="text-align: center;">
+            Sign In to Agent
+        </h2>
+        <p style="margin-bottom: 25px; text-align: center; color: #666;">
+            Enter your credentials to continue.
+        </p>
+
+        <!-- Error Message Display -->
+        {% if error %}
+        <div class="p-3 mb-4 text-sm text-red-700 bg-red-100 rounded-lg center-text" role="alert">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <form action="{{ url_for('handle_login') }}" method="POST" class="space-y-6">
+            <div>
+                <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+                <div class="mt-1">
+                    <input id="username" name="username" type="text" autocomplete="username" required
+                        class="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition duration-150 ease-in-out">
+                </div>
+            </div>
+
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                <div class="mt-1">
+                    <input id="password" name="password" type="password" autocomplete="current-password" required
+                        class="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition duration-150 ease-in-out">
+                </div>
+            </div>
+
+            <div>
+                <button type="submit" class="btn btn-primary" style="margin-top: 25px; width: 100%;">
+                    Sign In
+                </button>
+            </div>
+        </form>
+
+        <div class="mt-6 text-center">
+            <p class="text-sm text-gray-600">
+                Don't have an account?
+                <a href="{{ url_for('show_signup_form') }}" class="font-medium text-indigo-600 hover:text-indigo-500">
+                    Sign Up
+                </a>
+            </p>
+        </div>
+
+</div>
+{% endblock %}

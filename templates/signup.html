@@ -23,5 +23,14 @@
         
         <button type="submit" class="btn btn-primary" style="margin-top: 25px; width: 100%;">Sign Up Now</button>
     </form>
+
+    <div class="mt-6 text-center">
+        <p class="text-sm text-gray-600">
+            Already have an account?
+            <a href="{{ url_for('show_login_form') }}" class="font-medium text-primary-dark hover:text-success-green">
+                Sign In
+            </a>
+        </p>
+    </div>
 </div>
 {% endblock %}
