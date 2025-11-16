@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Marketing Assistant Agent{% endblock %}</title>
+    <!-- Inter font from Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Link to our custom stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
+
+</head>
+<body>
+
+    <header class="header">
+        <div class="container">
+            <a href="/">AI Marketing Assistant</a>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- This is where the specific page content will be injected -->
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <footer>
+        <div class="container" style="padding-top: 40px; text-align: center; color: #7f8c8d; font-size: 0.85em;">
+            <p>&copy; 2025 Marketing Assistant. Powered by Gemini.</p>
+        </div>
+    </footer>
+    
+    <!-- Block for any page-specific JavaScript -->
+    {% block scripts %}
+    {% endblock %}
+
+</body>
+</html>

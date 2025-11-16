@@ -1,50 +1,45 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
+from fastapi import FastAPI, Request, status
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from pathlib import Path
 
-app = FastAPI(
-    title="Marketing Agent Hackathon App",
-    #on_startup=[create_db_and_tables] # Run table creation when app starts
-)
+# --- 1. FastAPI App Initialization ---
+
+app = FastAPI()
+
+# --- 2. Template and Static File Configuration ---
+
+# Define the base directory of the application relative to this script
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Use absolute paths for templates and static files to ensure Docker path resolution works
+STATIC_DIR = BASE_DIR / "static"
+TEMPLATES_DIR = BASE_DIR / "templates"
+
+# Mount the static directory to serve CSS and JS files
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+# Configure Jinja2 templates
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
-# Mount Static Files (for CSS/JS) - URL path /static maps to the 'static' directory
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# --- 3. UI Routes ---
 
-# Initialize Template Engine - Looks for HTML files in the 'templates' directory
-templates = Jinja2Templates(directory="templates")
+@app.get("/", response_class=RedirectResponse, name="home")
+async def home_redirect():
+    """Redirects the root path to the sign-up page."""
+    # This ensures navigating to http://localhost:8000/ works
+    return RedirectResponse(url="/signup", status_code=status.HTTP_302_FOUND)
 
-# --- 3. Root Routes (UI Pages) ---
-
-# Renders the main input form page (using the name "show_input_form" for url_for)
-@app.get("/", response_class=HTMLResponse, name="show_input_form")
-async def show_input_form(request: Request):
+@app.get("/signup", response_class=HTMLResponse, name="show_signup_form")
+async def show_signup_form(request: Request):
+    """
+    Renders the sign-up form page. This is the only critical view 
+    needed to test the frontend and template loading.
+    """
     return templates.TemplateResponse(
         request=request, 
-        name="input.html", 
-        context={"request": request, "post_content": ""}
+        name="signup.html", 
+        context={"request": request}
     )
-
-# Renders the login page (using the name "show_login" for url_for)
-# @app.get("/login", response_class=HTMLResponse, name="show_login")
-# async def show_login(request: Request):
-#     return templates.TemplateResponse(
-#         request=request, name="login.html", context={"request": request}
-#     )
-
-
-# --- 4. API/Form Submission Routes ---
-
-# Example: POST route to handle form submission and generate content
-# @app.post("/generate", response_class=HTMLResponse)
-# async def handle_generate_post(
-#     request: Request,
-#     # ... Form() data inputs ...
-#     # session: Session = Depends(get_session) # Example DB dependency
-# ):
-#     # 1. Validate inputs (FastAPI does this automatically)
-#     # 2. Call RAG Agent (e.g., generated_post = generate_content(...))
-#     # 3. Save Post History to PostgreSQL
-#     # 4. Re-render the input page with the result
-#     pass
