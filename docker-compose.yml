@@ -10,7 +10,7 @@ services:
     restart: unless-stopped
     
     # NEW: Run uvicorn as a Python module to avoid the "executable file not found" error
-    command: python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+    command: python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     
     # Expose the API/Frontend to your local machine (host:container)
     ports:
