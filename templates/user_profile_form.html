@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Setup Profile{% endblock %}
+
+{% block content %}
+<!-- Centered, professional card layout using Tailwind -->
+<div class="flex items-center justify-center min-h-screen bg-gray-50 p-4 -mt-20"> 
+    <div class="w-full max-w-2xl bg-white p-10 rounded-xl shadow-2xl border border-gray-200">
+        <h2 class="text-3xl font-extrabold text-gray-900 text-center mb-4">
+            AI Marketing Agent Setup
+        </h2>
+        <p class="text-center text-md text-gray-600 mb-8">
+            Tell us about your business so the AI can generate tailored content.
+        </p>
+
+        <!-- Form for Profile Submission -->
+        <form action="{{ url_for('handle_profile_submit') }}" method="POST" class="space-y-6">
+
+            <!-- Company Name -->
+            <div>
+                <label for="company_name" class="block text-sm font-medium text-gray-700">Company Name</label>
+                <div class="mt-1">
+                    <input id="company_name" name="company_name" type="text" required
+                        class="form-input" 
+                        value="{{ profile.company_name if profile else '' }}">
+                </div>
+            </div>
+
+            <!-- Product/Service Description (Text Area) -->
+            <div>
+                <label for="product_description" class="block text-sm font-medium text-gray-700">Product/Service Description</label>
+                <div class="mt-1">
+                    <textarea id="product_description" name="product_description" rows="4" required
+                        class="form-input" 
+                        placeholder="A detailed summary of what is being marketed, including key features and unique benefits.">{{ profile.product_description if profile else '' }}</textarea>
+                </div>
+            </div>
+
+            <!-- Target Audience Persona (Text Area) -->
+            <div>
+                <label for="target_audience" class="block text-sm font-medium text-gray-700">Target Audience Persona</label>
+                <div class="mt-1">
+                    <textarea id="target_audience" name="target_audience" rows="4" required
+                        class="form-input"
+                        placeholder="A description of the ideal customer (demographics, pain points, motivations, goals).">{{ profile.target_audience if profile else '' }}</textarea>
+                </div>
+            </div>
+
+            <!-- Tone of Voice (Dropdown) -->
+            <div>
+                <label for="tone_of_voice" class="block text-sm font-medium text-gray-700">Tone of Voice</label>
+                <div class="mt-1">
+                    <select id="tone_of_voice" name="tone_of_voice" required class="form-input">
+                        <option value="" disabled>Select the required output tone</option>
+                        
+                        {% set current_tone = profile.tone_of_voice if profile else '' %}
+                        
+                        <option value="Professional" {% if current_tone == 'Professional' %}selected{% endif %}>Professional & Formal</option>
+                        <option value="Witty" {% if current_tone == 'Witty' %}selected{% endif %}>Witty & Humorous</option>
+                        <option value="Empathetic" {% if current_tone == 'Empathetic' %}selected{% endif %}>Empathetic & Supportive</option>
+                        <option value="Urgent" {% if current_tone == 'Urgent' %}selected{% endif %}>Urgent & High-Energy</option>
+                        <option value="Casual" {% if current_tone == 'Casual' %}selected{% endif %}>Casual & Conversational</option>
+                        <option value="Academic" {% if current_tone == 'Academic' %}selected{% endif %}>Academic & Informative</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="pt-2">
+                <button type="submit" class="btn btn-primary">
+                    Save Profile & Continue
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
