@@ -47,13 +47,13 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # 1. Home Page
 @app.get("/", response_class=HTMLResponse)
-async def home(request: Request, user: ActiveUser): 
-    """Renders the home page, showing the user's status."""
+async def home(request: Request): 
+    """Renders the home page with oiptions to signup/ login."""
 
     return templates.TemplateResponse(
         request=request, 
         name="index.html",
-        context={"request": request, "user_id": user.id}
+        context={"request": request}
     )
 
 # 1b. Agent Chatbot page
