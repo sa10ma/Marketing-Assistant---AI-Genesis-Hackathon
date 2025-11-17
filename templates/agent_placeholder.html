@@ -1,13 +1,190 @@
 {% extends "base.html" %}
 
-{% block title %}Welcome!{% endblock %}
+{% block title %}Marketing Assistant Chat{% endblock %}
 
 {% block content %}
-<div class="card" style="max-width: 800px; margin: 60px auto; text-align: center;">
-    <h1 style="color: var(--color-secondary);">🚀 Success! Welcome to the AI Marketing Assistant.</h1>
-    <p style="font-size: 1.1em; margin-top: 15px;">
-        Your account has been created (placeholder submission). The main agent interface is currently under construction.
-    </p>
-    <a href='/signup' class="btn btn-primary" style="margin-top: 30px;">Go Back to Sign Up</a>
+<!-- The outer card class with fixed max-width and margin has been removed. 
+     The content now uses the full width of the parent .container (max-width: 1200px from base.html). -->
+
+<!-- Container for the entire chat area -->
+<div class="chat-main-area">
+    
+    <!-- Chat Interface Container 
+         Height is calculated to fill the remaining viewport space (100vh) minus the header, footer, and padding. -->
+    <div id="chat-container" style="
+        display: flex; 
+        flex-direction: column; 
+        height: calc(100vh - 220px); 
+        min-height: 400px; 
+        border-radius: 8px; 
+        overflow: hidden; 
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        border: 1px solid var(--color-border);
+        background-color: var(--color-surface); /* Main chat box background */
+    ">
+        
+        <!-- Messages Display Area -->
+        <div id="message-display" style="flex-grow: 1; overflow-y: auto; padding: 25px; background-color: var(--color-background);">
+            <!-- Welcome Message -->
+            <div class="message system-message">
+                Hello! Based on your profile ({{ profile.company_name | default('No Profile Found') }}), how can I help you generate your next marketing strategy or content?
+            </div>
+            <!-- Messages will be injected here by JavaScript -->
+        </div>
+
+        <!-- Input Form -->
+        <form id="chat-form" style="padding: 15px 25px; background-color: var(--color-surface); border-top: 1px solid var(--color-border); display: flex; gap: 10px; align-items: flex-end;">
+            
+            <!-- Textarea -->
+            <textarea 
+                id="user-input" 
+                name="user_input" 
+                placeholder="Ask for marketing copy, analysis, or strategies..." 
+                required 
+                rows="1" 
+                style="flex-grow: 1; margin-bottom: 0;"
+            ></textarea>
+            
+            <button type="submit" class="btn-primary">Send</button>
+        </form>
+    </div>
 </div>
+
+<style>
+    /* Styling for the chat bubbles */
+    #message-display {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    .message {
+        max-width: 75%;
+        padding: 10px 15px;
+        border-radius: 18px;
+        word-wrap: break-word;
+        line-height: 1.4;
+        font-size: 0.95em;
+    }
+
+    /* System/AI Message Styling */
+    .system-message {
+        background-color: var(--color-surface); /* White bubble */
+        border: 1px solid var(--color-border);
+        align-self: flex-start;
+        border-bottom-left-radius: 4px; /* Straight edge near avatar/time */
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    /* User Message Styling */
+    .user-message {
+        background-color: var(--color-secondary); /* Green bubble */
+        color: var(--color-surface);
+        align-self: flex-end;
+        border-bottom-right-radius: 4px; /* Straight edge near time */
+    }
+
+    /* Custom styles for the new expanding textarea */
+    #chat-form textarea {
+        min-height: 40px; /* Initial height */
+        max-height: 150px; /* Max height before scrolling */
+        resize: none; /* Disable manual resize handle */
+        overflow-y: auto; /* Enable scrollbar when max-height is reached */
+        /* Inheriting standard form input styles from base */
+        width: 100%;
+        padding: 10px;
+        border: 1px solid var(--color-border);
+        border-radius: 4px;
+        font-size: 1em;
+        transition: border-color 0.2s;
+        box-sizing: border-box;
+    }
+    
+    #chat-form textarea:focus {
+        border-color: var(--color-secondary);
+        outline: none;
+        box-shadow: 0 0 0 1px var(--color-secondary);
+    }
+
+
+    /* Responsive adjustments for smaller screens */
+    @media (max-width: 600px) {
+        #chat-container {
+            height: 450px; /* Shorter height on mobile */
+        }
+        #chat-form {
+            flex-direction: column;
+        }
+        #chat-form button {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const chatForm = document.getElementById('chat-form');
+        const messageDisplay = document.getElementById('message-display');
+        const userInput = document.getElementById('user-input');
+        const MAX_HEIGHT = 150; // Matches CSS max-height
+
+        // Function to scroll to the bottom of the message display
+        const scrollToBottom = () => {
+            messageDisplay.scrollTop = messageDisplay.scrollHeight;
+        };
+        
+        // Function to auto-expand the textarea
+        const autoExpand = () => {
+            // Temporarily reset height to auto to calculate scrollHeight correctly
+            userInput.style.height = 'auto';
+            
+            // Set the new height, capped by MAX_HEIGHT
+            const newHeight = Math.min(userInput.scrollHeight, MAX_HEIGHT);
+            userInput.style.height = `${newHeight}px`;
+
+            // If scrollHeight > MAX_HEIGHT, overflow-y: auto handles scrolling
+        };
+        
+        // Add listener for input events (keypress, paste, etc.)
+        userInput.addEventListener('input', autoExpand);
+        
+        // Initial call to set correct height if content exists (e.g., from browser restore)
+        autoExpand();
+
+
+        // Add a new message bubble to the display
+        const addMessage = (text, sender) => {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', `${sender}-message`);
+            // Use innerHTML for basic Markdown support (like line breaks) if needed later
+            messageDiv.innerHTML = text.replace(/\n/g, '<br>'); 
+            messageDisplay.appendChild(messageDiv);
+            scrollToBottom();
+        };
+
+        // Handle the form submission (currently logs and clears, API integration would go here)
+        chatForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const text = userInput.value.trim();
+            if (text === '') return;
+
+            // 1. Display user message
+            addMessage(text, 'user');
+
+            // 2. Clear input and reset height
+            userInput.value = '';
+            autoExpand(); // Reset height back to min-height
+
+            // 3. Simulate AI response (Replace with actual API call)
+            setTimeout(() => {
+                const aiResponse = `I received your request: "${text}". I am ready to process this using the Gemini API!`;
+                addMessage(aiResponse, 'system');
+            }, 700);
+        });
+
+        // Initial scroll to show the welcome message
+        scrollToBottom();
+    });
+</script>
 {% endblock %}
