@@ -65,14 +65,3 @@ def retrieve_data(user_id: int, query: str, top_k: int = 5):
    
         )
     return [hit.payload for hit in search_result ]
-
-
-insert_data(
-            user_id=42,
-            text="Test marketing content",
-            url="https://example.com",
-            metadata={"campaign": "launch"}
-        )
-
-results=retrieve_data(user_id=42, query="marketing")
-print("Retrieved results:", results)
