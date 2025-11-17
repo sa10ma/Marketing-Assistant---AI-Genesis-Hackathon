@@ -22,5 +22,4 @@ torch
 asyncpg 
 aiosqlite                 # Fast, asynchronous PostgreSQL driver
 sqlmodel                  # (Recommended ORM) Based on SQLAlchemy and Pydantic for clean, modern Python DB models
-aiosqlite
 #psycopg2-binary           # Fallback/standard PostgreSQL driver
