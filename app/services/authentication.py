@@ -9,12 +9,30 @@ from sqlmodel import select
 from app.database.db_schema import User 
 from app.database.db import SessionDep
 
+import bcrypt
+
 # --- JWT Configuration 
 SECRET_KEY = os.environ.get("SECRET_KEY", secrets.token_hex(32)) 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30 
 JWT_COOKIE_NAME = "access_token" 
 
+# --- Password Hasher ---
+class PasswordHasher:
+    """Utility class for hashing and verifying passwords."""
+    @staticmethod
+    def hash_password(password: str) -> str:
+        """Hash a password using bcrypt"""
+        return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+    @staticmethod
+    def verify_password(plain_password: str, hashed: str) -> bool:
+        """Verify a password against its hash"""
+        return bcrypt.checkpw(
+            plain_password.encode("utf-8"),
+            hashed.encode("utf-8"),
+        )
+        
 # --- JWT Utility Function ---
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):

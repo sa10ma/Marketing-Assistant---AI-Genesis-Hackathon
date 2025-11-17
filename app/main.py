@@ -18,8 +18,10 @@ from app.services.authentication import (
     ActiveUserID, # <-- IMPORTED ActiveUserID
     JWT_COOKIE_NAME,
     ACCESS_TOKEN_EXPIRE_MINUTES,
-    set_auth_cookie
+    set_auth_cookie,
+    PasswordHasher
 )
+
 from app.database.db_schema import User, UserProfile 
 from app.qdrant_rag import create_qdrant_collection
 
@@ -45,12 +47,13 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # 1. Home Page
 @app.get("/", response_class=HTMLResponse)
-async def home(request: Request): 
+async def home(request: Request, user: ActiveUser): 
     """Renders the home page, showing the user's status."""
+
     return templates.TemplateResponse(
         request=request, 
         name="index.html",
-        context={"request": request}
+        context={"request": request, "user_id": user.id}
     )
 
 # 1b. Agent Chatbot page
@@ -107,8 +110,10 @@ async def handle_signup(
             context={"request": request, "error": "Username already taken."}
         )
     
+    hashed_password = PasswordHasher.hash_password(password)
+
     # 1. Create new user
-    new_user = User(username=username, password=password)
+    new_user = User(username=username, password=hashed_password)
     session.add(new_user)
     await session.commit()
     await session.refresh(new_user)
@@ -141,11 +146,11 @@ async def handle_login(
     """Handles login form submission, creates a JWT, and sets a cookie."""
     
     # 1. Look up user by username and password
-    user_statement = select(User).where(User.username == username, User.password == password)
+    user_statement = select(User).where(User.username == username)
     user_result = await session.exec(user_statement)
     user = user_result.one_or_none()
 
-    if user:
+    if user and PasswordHasher.verify_password(password, user.password):
         # 2. Prepare Redirect Response
         response = RedirectResponse(url="/profile", status_code=status.HTTP_303_SEE_OTHER)
         
