@@ -1,12 +1,12 @@
-# Use a robust, non-slim Python base image (Alpine for small size)
-FROM python:3.12-alpine
+# Use a Debian-based Python image for better PyTorch compatibility
+FROM python:3.12-slim
 
 # Set the working directory inside the container
 WORKDIR /app
 
 # Ensure standard build tools are present for certain Python packages
 # (e.g., packages with C extensions like Pandas, although not strictly needed for uvicorn)
-RUN apk add --no-cache build-base
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
 
 # Copy the requirements file and install dependencies first.
 # This improves layer caching: if only code changes, dependencies aren't re-installed.
