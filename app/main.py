@@ -252,3 +252,22 @@ async def handle_logout(response: Response):
         url="/login", 
         status_code=status.HTTP_303_SEE_OTHER
     )
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from app.agent import generate_ai_response
+
+@app.post("/api/chat")
+async def chat_api(request: Request):
+    data = await request.json()
+    user_message = data.get("message", "")
+
+    # Safe access
+    profile = getattr(request.state, "user_profile", None)
+
+    company_name = profile.company_name if profile else "Unknown Company"
+
+    ai_response = await generate_ai_response(company_name, user_message)
+
+    return JSONResponse({"response": ai_response})
+
