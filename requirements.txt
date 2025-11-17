@@ -16,4 +16,5 @@ qdrant-client             # Client library to connect to the Qdrant service
 # --- SQL Database Client ---
 asyncpg                   # Fast, asynchronous PostgreSQL driver
 sqlmodel                  # (Recommended ORM) Based on SQLAlchemy and Pydantic for clean, modern Python DB models
+aiosqlite
 #psycopg2-binary           # Fallback/standard PostgreSQL driver
