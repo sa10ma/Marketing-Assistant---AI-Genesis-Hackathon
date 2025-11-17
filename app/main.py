@@ -48,7 +48,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # 1. Home Page
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request): 
-    """Renders the home page with oiptions to signup/ login."""
+    """Renders the home page with options to signup/ login."""
 
     return templates.TemplateResponse(
         request=request, 
