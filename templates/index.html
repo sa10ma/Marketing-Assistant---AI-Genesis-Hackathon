@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Welcome to the AI Marketing Assistant{% endblock %}
+
+{% block content %}
+<div class="card" style="
+    max-width: 600px; 
+    margin: 80px auto; 
+    text-align: center;
+    padding: 40px;
+    border: 2px solid var(--color-secondary);
+">
+    <h1 style="color: var(--color-primary); font-size: 2.5em; margin-bottom: 10px;">
+        Turbocharge Your Marketing
+    </h1>
+    <h2 style="color: #555; font-size: 1.2em; font-weight: 400; margin-bottom: 30px;">
+        Generate campaigns, copy, and analysis powered by Gemini.
+    </h2>
+
+    <div style="margin-bottom: 25px;">
+        <p style="color: #7f8c8d; font-size: 0.9em; max-width: 400px; margin: 0 auto 20px;">
+            Set up your company profile once, and let the AI do the heavy lifting.
+        </p>
+    </div>
+
+    <!-- Call to Action Buttons -->
+    <div style="display: flex; gap: 20px; justify-content: center;">
+        
+        <!-- Sign Up Button -->
+        <a href="/signup" class="btn btn-primary" style="padding: 12px 30px; font-size: 1.1em; text-decoration: none;">
+            Get Started (Sign Up)
+        </a>
+        
+        <!-- Login Button -->
+        <a href="/login" class="btn" style="
+            padding: 12px 30px; 
+            font-size: 1.1em; 
+            text-decoration: none;
+            background-color: var(--color-background);
+            color: var(--color-primary);
+            border: 1px solid var(--color-primary);
+        ">
+            Log In
+        </a>
+    </div>
+
+</div>
+{% endblock %}

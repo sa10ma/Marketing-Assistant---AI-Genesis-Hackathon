@@ -29,8 +29,8 @@ from app.qdrant_rag import create_qdrant_collection
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Create tables before the app starts serving requests
-    await create_db_and_tables()
     create_qdrant_collection()
+    await create_db_and_tables()
     yield
 
 app = FastAPI(lifespan=lifespan)
@@ -53,9 +53,9 @@ async def home(request: Request):
         context={"request": request}
     )
 
-# 1b. Agent Placeholder Page (Fake Agent Page)
+# 1b. Agent Chatbot page
 @app.get("/agent", response_class=HTMLResponse)
-async def show_agent_placeholder(
+async def show_agent(
     request: Request, 
     user: ActiveUser,
     session: SessionDep):
@@ -68,9 +68,11 @@ async def show_agent_placeholder(
     
     return templates.TemplateResponse(
         request=request, 
-        name="agent_placeholder.html",
+        name="agent_chatbot.html",
         context={"request": request, "user_id": user.id, "profile":profile}
     )
+
+#agent post endpoint TODO
 
 # 1c. Sign Up Page
 @app.get("/signup", response_class=HTMLResponse)
