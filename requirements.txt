@@ -14,9 +14,12 @@ langchain-google-genai
 tiktoken                  # For token counting
 
 # --- Vector Database Client ---
-qdrant-client             # Client library to connect to the Qdrant service
+qdrant-client   # Client library to connect to the Qdrant service
 
+sentence-transformers     # For embedding generation
+torch
 # --- SQL Database Client ---
-asyncpg                   # Fast, asynchronous PostgreSQL driver
+asyncpg 
+aiosqlite                 # Fast, asynchronous PostgreSQL driver
 sqlmodel                  # (Recommended ORM) Based on SQLAlchemy and Pydantic for clean, modern Python DB models
 #psycopg2-binary           # Fallback/standard PostgreSQL driver
