@@ -11,11 +11,15 @@ from pydantic import ValidationError # Added for optional error handling
 # Import functions and models from the new database structure
 from app.database.db import create_db_and_tables, get_session
 from app.database.db_schema import User, UserProfile # Import UserProfile
+from app.qdrant_rag import create_qdrant_collection
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Create tables before the app starts serving requests
     await create_db_and_tables()
+    create_qdrant_collection()
+
     yield
     # Shutdown: (No specific shutdown logic needed for this simple case)
 
