@@ -3,17 +3,30 @@
 {% block title %}User Sign Up{% endblock %}
 
 {% block content %}
-<div class="card" style="max-width: 400px; margin: 60px auto;">
-    <h2 style="text-align: center;">Create Your Account</h2>
-    <p style="margin-bottom: 25px; text-align: center; color: #666;">
+<div class="card" style="max-width: 400px; margin: 60px auto; padding: 30px;">
+    <h2 style="text-align: center; margin-bottom: 5px;">Create Your Account</h2>
+    <p style="margin-bottom: 25px; text-align: center; color: #666; font-size: 0.9rem;">
         Set up your username and password to begin.
     </p>
+
+    <!-- Error Message Display -->
+    {% if error %}
+    <div style="background-color: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; padding: 10px; margin-bottom: 20px; border-radius: 8px; font-weight: 600; text-align: center;">
+        {{ error }}
+    </div>
+    {% endif %}
 
     <form method="POST" action="/signup">
         
         <div class="form-group">
             <label for="username">Username</label>
-            <input type="text" id="username" name="username" required>
+            <!-- Input will be blank on error, as requested -->
+            <input 
+                type="text" 
+                id="username" 
+                name="username" 
+                required
+            >
         </div>
         
         <div class="form-group">
@@ -27,7 +40,7 @@
     <div class="mt-6 text-center">
         <p class="text-sm text-gray-600">
             Already have an account?
-            <a href="{{ url_for('show_login_form') }}" class="font-medium text-primary-dark hover:text-success-green">
+            <a href="{{ url_for('show_login') }}" class="font-medium text-primary-dark hover:text-success-green">
                 Sign In
             </a>
         </p>

@@ -3,6 +3,9 @@ fastapi
 uvicorn[standard]
 jinja2
 python-multipart  # For processing HTML form data
+bcrypt
+jwt
+python-jose[cryptography]
 
 # --- RAG Core ---
 langchain
