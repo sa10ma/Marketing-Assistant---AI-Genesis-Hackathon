@@ -21,13 +21,16 @@ from app.services.authentication import (
     set_auth_cookie
 )
 from app.database.db_schema import User, UserProfile 
+from app.qdrant_rag import create_qdrant_collection
+
 
 # --- Application Lifespan ---
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Create tables before the app starts serving requests
-    await create_db_and_tables() 
+    await create_db_and_tables()
+    create_qdrant_collection()
     yield
 
 app = FastAPI(lifespan=lifespan)
