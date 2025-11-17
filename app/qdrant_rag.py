@@ -10,14 +10,58 @@ from qdrant_client.models import VectorParams, Distance, PointStruct,Filter, Fie
 from sentence_transformers import SentenceTransformer
 from typing import Optional, Any,Dict
 
-def create_qdrant_collection():
-    """Create a Qdrant collection for storing marketing data."""
+# def create_qdrant_collection():
+#     client = QdrantClient(host="qdrant", port=6333)
+#     if "marketing_data" not in [c.name for c in client.get_collections().collections]:
+#         client.create_collection(
+#             collection_name="marketing_data",
+#             vectors_config=VectorParams(size=768, distance=Distance.COSINE),
+#         )
+#         print("Qdrant collection created successfully.")
+#     else:
+#         print("Qdrant collection already exists.")
+
+import time
+from qdrant_client import QdrantClient
+from qdrant_client.http.exceptions import UnexpectedResponse
+from qdrant_client.models import VectorParams, Distance
+
+
+def wait_for_qdrant(max_retries=10, delay=1):
+    """Poll Qdrant until it becomes available."""
     client = QdrantClient(host="qdrant", port=6333)
-    client.recreate_collection(
-        collection_name="marketing_data",
-        vectors_config=VectorParams(size=768, distance=Distance.COSINE),
-    )
-    print("Qdrant collection created successfully.")
+    
+    for i in range(max_retries):
+        try:
+            client.get_collections()
+            print("Qdrant is ready.")
+            return client
+        except Exception as e:
+            print(f"Qdrant not ready yet ({i+1}/{max_retries}). Retrying...")
+            time.sleep(delay)
+
+    raise RuntimeError("Qdrant did not become ready in time.")
+    
+
+def create_qdrant_collection():
+    """Create collection only if it does not already exist."""
+    client = wait_for_qdrant()
+
+    collections = [c.name for c in client.get_collections().collections]
+
+    if "marketing_data" not in collections:
+        client.create_collection(
+            collection_name="marketing_data",
+            vectors_config=VectorParams(
+                size=768,               # mpnet vector size
+                distance=Distance.COSINE
+            ),
+        )
+        print("Qdrant collection 'marketing_data' created.")
+    else:
+        print("Qdrant collection 'marketing_data' already exists.")
+
+
 
 model = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")
 
@@ -66,13 +110,3 @@ def retrieve_data(user_id: int, query: str, top_k: int = 5):
         )
     return [hit.payload for hit in search_result ]
 
-
-insert_data(
-            user_id=42,
-            text="Test marketing content",
-            url="https://example.com",
-            metadata={"campaign": "launch"}
-        )
-
-results=retrieve_data(user_id=42, query="marketing")
-print("Retrieved results:", results)

@@ -65,12 +65,23 @@
                 </div>
             </div>
 
-            <div class="pt-2">
+           
+        </form>
+         <div class="pt-2">
                 <button type="submit" class="btn btn-primary">
                     Save Profile & Continue
                 </button>
             </div>
-        </form>
+
+            <div class="bg-white p-8 rounded-xl shadow-lg mt-10 max-w-3xl mx-auto">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">
+                    AI-Generated Marketing Discovery Questions
+                </h2>
+            
+                <pre class="whitespace-pre-wrap bg-gray-100 p-6 rounded-lg text-gray-800">
+            {{ questions }}
+                </pre>
+            </div>
     </div>
 </div>
 {% endblock %}

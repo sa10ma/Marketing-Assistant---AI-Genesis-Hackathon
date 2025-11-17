@@ -8,9 +8,12 @@ jwt
 python-jose[cryptography]
 
 # --- RAG Core ---
-langchain
+
 langchain-tavily
-langchain-google-genai 
+langchain>=0.2.16,<1.0
+langchain-google-genai>=1.0.5
+langchain-core
+langchain-community
 tiktoken                  # For token counting
 
 # --- Vector Database Client ---

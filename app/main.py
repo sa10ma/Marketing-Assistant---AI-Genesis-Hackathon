@@ -28,7 +28,6 @@ from app.qdrant_rag import create_qdrant_collection
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Create tables before the app starts serving requests
     await create_db_and_tables()
     create_qdrant_collection()
     yield
@@ -49,28 +48,62 @@ async def home(request: Request):
     """Renders the home page, showing the user's status."""
     return templates.TemplateResponse(
         request=request, 
-        name="index.html",
+        name="login.html",
         context={"request": request}
     )
 
 # 1b. Agent Placeholder Page (Fake Agent Page)
+# @app.get("/agent", response_class=HTMLResponse)
+# async def show_agent_placeholder(
+#     request: Request, 
+#     user: ActiveUser,
+#     session: SessionDep):
+#     """
+#     Renders the temporary agent page after profile setup.
+#     Requires authentication via ActiveUser dependency.
+#     """
+#     result = await session.exec(select(UserProfile).where(UserProfile.user_id == user.id))
+#     profile = result.one_or_none()
+    
+#     return templates.TemplateResponse(
+#         request=request, 
+#         name="agent_placeholder.html",
+#         context={"request": request, "user_id": user.id, "profile":profile}
+#     )
+
+from app.ai_agent1 import generate_marketing_questions
+
 @app.get("/agent", response_class=HTMLResponse)
 async def show_agent_placeholder(
-    request: Request, 
+    request: Request,
     user: ActiveUser,
-    session: SessionDep):
-    """
-    Renders the temporary agent page after profile setup.
-    Requires authentication via ActiveUser dependency.
-    """
+    session: SessionDep
+):
+    #print("DEBUG - user.id =", user.id)  
+
+    # Load profile from DB
     result = await session.exec(select(UserProfile).where(UserProfile.user_id == user.id))
     profile = result.one_or_none()
-    
+
+
+    # If no profile exists, redirect
+    if not profile:
+        return RedirectResponse(url="/profile", status_code=status.HTTP_303_SEE_OTHER)
+
+    # 🌟 CALL THE AI AGENT HERE
+    questions = generate_marketing_questions(profile)
+
+    # Render template
     return templates.TemplateResponse(
-        request=request, 
+        request=request,
         name="agent_placeholder.html",
-        context={"request": request, "user_id": user.id, "profile":profile}
+        context={
+            "request": request,
+            "profile": profile,
+            "questions": questions
+        }
     )
+
 
 # 1c. Sign Up Page
 @app.get("/signup", response_class=HTMLResponse)
