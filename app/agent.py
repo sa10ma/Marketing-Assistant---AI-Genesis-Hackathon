@@ -122,6 +122,7 @@ async def generate_content_with_rag(user_id: int, user_request: str):
 
         Write a high-quality marketing output based on the request.
         If no relevant data is available, generate the best answer you can.
+        Give your output in plain text and emojis. Do not use markups.
         """
 
     # 4️⃣ Generate AI response
