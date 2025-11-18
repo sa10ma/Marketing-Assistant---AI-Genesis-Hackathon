@@ -13,11 +13,7 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 # Create the asynchronous engine
 engine = create_async_engine(DATABASE_URL, echo=True)
 
-# Create a session maker for managing database sessions
-#async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
 # --- 2. Table Creation Function ---
-
 async def create_db_and_tables():
     """Ensures all tables defined in SQLModel metadata are created in the database."""
     print("Attempting to initialize database tables...")
@@ -30,7 +26,6 @@ async def create_db_and_tables():
     print("Database tables initialized successfully.")
 
 # --- Database Dependency ---
-
 async def get_session():
     """Dependency to yield an asynchronous database session for each request."""
     async with AsyncSession(engine) as session:
