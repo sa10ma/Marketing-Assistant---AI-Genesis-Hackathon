@@ -23,7 +23,7 @@ from app.services.authentication import (
 )
 
 from app.database.db_schema import User, UserProfile 
-from app.qdrant_rag import create_qdrant_collection, insert_data, insert_qa
+from app.qdrant_rag import create_qdrant_collection, insert_data
 
 
 # --- Application Lifespan ---
@@ -238,11 +238,10 @@ async def handle_profile_submit(
     await session.commit()
     await session.refresh(profile)
     
-    qdrant_metadata = {"source": "User Profile Form"}
     insert_data(
         user_id=user_id, 
         data=profile_data_qdrant, 
-        metadata=qdrant_metadata
+        type = "profile_core"
     )
     
     # 2. Prepare Redirect Response to /agent
@@ -274,8 +273,6 @@ async def gather_info_web(
 ):
     
     """ Generate insightful questions, calls web search, and saves answer to Qdrant """
-    data = await request.json()
-    user_message = data.get("message", "")
 
     result = await session.exec(select(UserProfile).where(UserProfile.user_id == user.id))
     profile = result.one_or_none()
@@ -298,7 +295,7 @@ async def gather_info_web(
     if isinstance(questions, str):
         questions = [questions]
 
-    saved_items = []
+    saved_items = {}
 
     # 2️⃣ Generate answer for each question and save both
     for question in questions:
@@ -310,21 +307,17 @@ async def gather_info_web(
                 target_audience,
                 tone
             )
-            # Save to Qdrant (or DB)
-            insert_qa(
-                user_id=user.id,
-                question=question,
-                answer=answer,
-                metadata={
-                    "user_message": user_message,
-                    "company_name": company_name,
-                    "product_description": product_description
-                }
-            )
 
-            saved_items.append(f"Q: {question}\nA: {answer}")
+            saved_items[question] = answer
         except Exception as e:
             print(f"Failed to save Q&A: {question}. Error: {e}")
+
+    print(f"\n\nSAVED ITEMS: {saved_items}\n\n")
+    insert_data(
+    user_id=user.id,
+    data=saved_items,
+    type = "question_answer"
+    )
 
     # 3️⃣ Return all saved questions+answers
     return JSONResponse({"response": "Your research data has been saved."})
@@ -335,14 +328,13 @@ async def generate_api(request: Request, session: SessionDep, user: ActiveUser):
     data = await request.json()
     user_request = data.get("message")
 
-    # TODO extract_metada
-
+    print(f"\n\nuser requrest: {user_request}\n\n")
     content = await generate_content_with_rag(
         user_id=user.id,
         user_request=user_request
     )
-
-    return JSONResponse({"response": content})
+    print(f"\n\nthis is the content {content}")
+    return JSONResponse({"reply": content})
 
 
 

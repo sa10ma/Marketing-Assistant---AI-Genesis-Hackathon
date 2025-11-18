@@ -181,7 +181,17 @@
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ message: text }),
-        })
+            })
+
+            .then(res => res.json())
+            .then(data => {
+                // 4. Display AI/bot response in UI
+                if (data.reply) {
+                    addMessage(data.reply, 'bot');
+                } else {
+                    addMessage("No response from server.", 'bot');
+                }
+            })
 
 
         });

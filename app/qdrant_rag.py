@@ -12,12 +12,9 @@ from typing import Optional, Any,Dict, List
 import json
 import os
 
-CORE_PROFILE_TYPES = [
-    "Company Name",
-    "Product Description",
-    "Target Audience",
-    "Tone of Voice",
-]
+
+EMBED_CACHE = {}
+
 
 def create_qdrant_collection():
     """Create a Qdrant collection for storing marketing data."""
@@ -65,89 +62,51 @@ def extract_metadata(user_prompt: str):
             metadata[key]=user_input
     return metadata
 
-def insert_data(user_id: int, data: Dict[str, str], metadata: Optional[Dict[str, Any]] = None):
+def insert_data(user_id: int, data: Dict[str, str], type: str):
     """
-    Inserts data (e.g., business profile chunks or research results) into Qdrant.
-    It takes a dictionary of {title: content_text} and creates multiple points, 
-    using the 'title' as the chunk's 'type' in the payload.
+    Inserts all profile data for a user into Qdrant as a single point.
     
     Args:
         user_id: ID of the user owning the data.
-        data: Dictionary where keys are chunk titles (e.g., 'Target Audience')
-                      and values are the text content.
-        metadata: Optional dictionary of generic metadata to apply to all chunks 
-                  (e.g., date_added, source).
+        data: Dictionary where keys are field titles (e.g., 'Target Audience') 
+              and values are the text content.
     """
+    print(f"\n hi from insert data function called by {type}")
+
     client = QdrantClient(host="qdrant", port=6333)
-    points_to_insert: List[PointStruct] = []
-    
-    if metadata is None:
-        metadata = {}
-    
-    # Pre-process general metadata (applied to all chunks)
-    metadata_safe = {k: str(v) if not isinstance(v, (str, int, float, bool, list, dict)) else v 
-                     for k, v in metadata.items()}
 
-    # Iterate over the provided profile data to create multiple points
-    for title, text_content in data.items():
-        if not text_content:
-            continue # Skip empty data
 
-        # 1. Embed the content
-        embedding = embed_text(text_content).tolist() 
+    # Combine all profile fields into a single text block for embedding
+    combined_text = "\n".join(f"{k}: {v}" for k, v in data.items() if v)
 
-        # 2. Construct the chunk-specific payload
-        payload = {
-            "user_id": user_id,
-            "text": text_content,       # The actual content to be retrieved
-            "type": title,              # The descriptive title/field name (e.g., "Target Audience")
-            **metadata_safe             # Other generic metadata
-        }
-
-        # 3. Create the Qdrant PointStruct
-        point = PointStruct(
-            id=str(uuid.uuid4()),
-            vector=embedding,
-            payload=payload
-        )
-        points_to_insert.append(point)
-
-    # Perform batch upsert
-    if points_to_insert:
-        client.upsert(
-            collection_name="marketing_data",
-            points=points_to_insert,
-            wait=True # Wait for the operation to complete for reliable testing
-        )
-        print(f"Batch data inserted: {len(points_to_insert)} chunks for user_id: {user_id}")
-    else:
+    if not combined_text:
         print("No data provided to insert.")
+        return
 
+    # Generate embedding for the combined text
+    embedding = embed_cached(combined_text)
 
-def insert_qa(user_id: int, question: str, answer: str, metadata: dict):
-    client = QdrantClient(host="qdrant", port=6333)
-
-    embedding = embed_text(question).tolist()
-
+    # Construct payload
     payload = {
         "user_id": user_id,
-        "question": question,
-        "answer": answer,
-        "type": "research_qna",
-        **metadata
+        "type": type
     }
+
+    # Create and upsert the point
+    point = PointStruct(
+        id=str(uuid.uuid4()),
+        vector=embedding,
+        payload=payload
+    )
 
     client.upsert(
         collection_name="marketing_data",
-        points=[
-            PointStruct(
-                id=str(uuid.uuid4()),
-                vector=embedding,
-                payload=payload
-            )
-        ],
+        points=[point],
         wait=True
     )
+
+    print(f"Inserted single combined profile point for user_id: {user_id}")
+
 
 def retrieve_data(user_id: int, query: str, top_k: int = 5):
     """
@@ -155,6 +114,8 @@ def retrieve_data(user_id: int, query: str, top_k: int = 5):
     1. Guaranteed retrieval of core profile data (via filters).
     2. Contextual retrieval of relevant research data (via vector search).
     """
+
+    print("\n hi from retrieve function")
     client = QdrantClient(host="qdrant", port=6333)
     query_embedding = embed_text(query).tolist()
     
@@ -164,7 +125,7 @@ def retrieve_data(user_id: int, query: str, top_k: int = 5):
     profile_filter = Filter(
         must=[
             FieldCondition(key="user_id", match=MatchValue(value=user_id)),
-            FieldCondition(key="type", match=MatchAny(any=CORE_PROFILE_TYPES))
+            FieldCondition(key="type", match=MatchAny(any=["profile_core"]))
         ]
     )
     
@@ -172,7 +133,7 @@ def retrieve_data(user_id: int, query: str, top_k: int = 5):
     profile_results, _ = client.scroll(
         collection_name="marketing_data",
         scroll_filter=profile_filter,
-        limit=len(CORE_PROFILE_TYPES) * 2, 
+        limit=top_k, 
         with_payload=True,
     )
     
@@ -188,7 +149,7 @@ def retrieve_data(user_id: int, query: str, top_k: int = 5):
     
     # MustNot: Exclude the core profile types already retrieved
     must_not_conditions = [
-        FieldCondition(key="type", match=MatchAny(any=CORE_PROFILE_TYPES))
+        FieldCondition(key="type", match=MatchAny(any=["profile_core"]))
     ]
     
     search_filter = Filter(
@@ -205,10 +166,17 @@ def retrieve_data(user_id: int, query: str, top_k: int = 5):
     )
 
     # Combine and deduplicate the results
-    retrieved_payloads = [point.payload for point in search_result.points]
+    all_retrieved_payloads.extend([point.payload for point in search_result.points])
+    
+    return all_retrieved_payloads
 
-    return retrieved_payloads
 
+def embed_cached(text: str):
+    if text in EMBED_CACHE:
+        return EMBED_CACHE[text]
+    emb = embed_text(text).tolist()
+    EMBED_CACHE[text] = emb
+    return emb
 
 
 

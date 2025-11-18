@@ -1,4 +1,5 @@
 import os
+import json
 from app.qdrant_rag import retrieve_data
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import PromptTemplate
@@ -13,7 +14,7 @@ gemini = ChatGoogleGenerativeAI(
 
 
 async def generate_search_questions(company_name, product_description, target_audience, tone):
-
+    print("\n\nhi from seach agent\n\n")
     SEARCH_PROMPT = """
         You are an AI marketing strategist.
 
@@ -51,7 +52,6 @@ async def generate_search_questions(company_name, product_description, target_au
     # IMPORTANT: async call
     response = await gemini.ainvoke([HumanMessage(content=final_prompt)])
 
-    import json
     try:
         questions = json.loads(response.content)
         return questions
