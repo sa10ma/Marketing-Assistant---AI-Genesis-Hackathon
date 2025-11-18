@@ -23,7 +23,7 @@ from app.services.authentication import (
 )
 
 from app.database.db_schema import User, UserProfile 
-from app.qdrant_rag import create_qdrant_collection, insert_data
+from app.qdrant_rag import create_qdrant_collection, insert_data, insert_qa
 
 
 # --- Application Lifespan ---
@@ -241,7 +241,7 @@ async def handle_profile_submit(
     qdrant_metadata = {"source": "User Profile Form"}
     insert_data(
         user_id=user_id, 
-        profile_data=profile_data_qdrant, 
+        data=profile_data_qdrant, 
         metadata=qdrant_metadata
     )
     
@@ -311,16 +311,17 @@ async def gather_info_web(
                 tone
             )
             # Save to Qdrant (or DB)
-            insert_data(
+            insert_qa(
                 user_id=user.id,
-                text=question,
+                question=question,
+                answer=answer,
                 metadata={
-                    "answer": answer,
                     "user_message": user_message,
                     "company_name": company_name,
                     "product_description": product_description
                 }
             )
+
             saved_items.append(f"Q: {question}\nA: {answer}")
         except Exception as e:
             print(f"Failed to save Q&A: {question}. Error: {e}")

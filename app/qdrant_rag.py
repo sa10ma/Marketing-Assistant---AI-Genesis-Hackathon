@@ -6,7 +6,7 @@
 import uuid
 from langchain_google_genai import ChatGoogleGenerativeAI
 from qdrant_client import QdrantClient
-from qdrant_client.models import VectorParams, Distance, PointStruct,Filter, FieldCondition, MatchValue, MatchAny, MustNot
+from qdrant_client.models import VectorParams, Distance, PointStruct,Filter, FieldCondition, MatchValue, MatchAny
 from sentence_transformers import SentenceTransformer
 from typing import Optional, Any,Dict, List
 import json
@@ -123,6 +123,32 @@ def insert_data(user_id: int, data: Dict[str, str], metadata: Optional[Dict[str,
     else:
         print("No data provided to insert.")
 
+
+def insert_qa(user_id: int, question: str, answer: str, metadata: dict):
+    client = QdrantClient(host="qdrant", port=6333)
+
+    embedding = embed_text(question).tolist()
+
+    payload = {
+        "user_id": user_id,
+        "question": question,
+        "answer": answer,
+        "type": "research_qna",
+        **metadata
+    }
+
+    client.upsert(
+        collection_name="marketing_data",
+        points=[
+            PointStruct(
+                id=str(uuid.uuid4()),
+                vector=embedding,
+                payload=payload
+            )
+        ],
+        wait=True
+    )
+
 def retrieve_data(user_id: int, query: str, top_k: int = 5):
     """
     Retrieve data using a two-pronged approach: 
@@ -172,113 +198,16 @@ def retrieve_data(user_id: int, query: str, top_k: int = 5):
 
     search_result = client.query_points(
         collection_name= "marketing_data",
-        vector=query_embedding,
+        query=query_embedding,
         limit=top_k, 
         query_filter=search_filter,
         with_payload=True 
     )
 
     # Combine and deduplicate the results
-    all_retrieved_payloads.extend([hit.payload for hit in search_result])
-    
-    return all_retrieved_payloads
+    retrieved_payloads = [point.payload for point in search_result.points]
 
-
-# def insert_data(user_id: int, text: str, metadata: Optional[Dict[str, Any]] = None):
-#     """Insert embedded data into Qdrant collection with user_id filter."""
-#     client = QdrantClient(host="qdrant", port=6333)
-    
-#     if metadata is None:
-#         metadata = {}
-    
-#     # Make metadata JSON-serializable
-#     metadata_safe = {k: str(v) if not isinstance(v, (str, int, float, bool, list, dict)) else v 
-#                      for k, v in metadata.items()}
-    
-#     payload = {
-#         "user_id": user_id,
-#         "text": text,
-#         **metadata_safe
-#     }
-
-#     embedding = embed_text(text).tolist()  # <-- important: convert NumPy array to list
-
-#     point = {
-#         "id": str(uuid.uuid4()),
-#         "vector": embedding,
-#         "payload": payload
-#     }
-    
-#     client.upsert(
-#         collection_name="marketing_data",
-#         points=[point]
-#     )
-#     print(f"Data inserted for user_id: {user_id}")
-
-
-# def retrieve_data(user_id: int, query: str, top_k: int = 5, metadata: Optional[dict] = None):
-#     """Retrieve data from Qdrant collection filtered by user_id and metadata."""
-#     client = QdrantClient(host="qdrant", port=6333)
-#     query_embedding = embed_text(query).tolist()  # ensure it's a list
-
-#     must_conditions = [
-#         FieldCondition(key="user_id", match=MatchValue(value=user_id))
-#     ]
-    
-#     if metadata:
-#         for key in ["industry", "type", "topic", "tone"]:
-#             if key in metadata and metadata[key]:
-#                 must_conditions.append(FieldCondition(key=key, match=MatchValue(value=metadata[key])))
-
-#     # Use query_points instead of search
-#     search_result = client.query_points(
-#         collection_name="marketing_data",
-#         query=query_embedding,
-#         #top=top_k,
-#         query_filter=Filter(must=must_conditions),
-#         with_payload= True
-#     )
-
-#     print("searchhh resultlttsssssss", search_result)
-#     return [hit for hit in search_result]
-
-
-
-# from qdrant_client import QdrantClient
-
-
-# qdrant = QdrantClient(
-#     host="qdrant",
-#     port=6333
-# )
-
-
-# from qdrant_client.http.models import Filter, FieldCondition, MatchValue
-
-# def search_knowledge(user_id: int, query: str, top_k: int = 5):
-#     """
-#     Searches Qdrant using vector similarity.
-#     Works with SentenceTransformer embeddings.
-#     """
-#     # 1️⃣ Embed the query
-#     query_vector = embed_text(query).tolist()
-
-#     # 2️⃣ Build user filter
-#     user_filter = Filter(
-#         must=[
-#             FieldCondition(key="user_id", match=MatchValue(value=user_id))
-#         ]
-#     )
-
-#     # 3️⃣ Query Qdrant using vector
-#     results = qdrant.query_points(
-#         collection_name="marketing_data",
-#         vector=query_vector,
-#         limit=top_k,
-#         query_filter=user_filter
-#     )
-
-#     return results.points
+    return retrieved_payloads
 
 
 
