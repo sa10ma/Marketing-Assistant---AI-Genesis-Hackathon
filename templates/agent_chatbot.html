@@ -182,23 +182,30 @@
             //     const aiResponse = `I received your request: "${text}". I am ready to process this using the Gemini API!`;
             //     addMessage(aiResponse, 'system');
             // }, 700);
-            fetch("/api/chat", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ message: text }),
-            })
-            // setTimeout(() => {
-            //     const aiResponse = `I received your request: "${text}". I am ready to process this using the Gemini API!`;
-            //     addMessage(aiResponse, 'system');
-            // }, 700);
-            .then(res => res.json())
-            .then(data => {
-                addMessage(data.response, "system");
-            })
-            .catch(err => {
-                addMessage("⚠️ Error contacting AI server.", "system");
-                console.error(err);
-            });
+            // fetch("/api/chat", {
+            //     method: "POST",
+            //     headers: { "Content-Type": "application/json" },
+            //     body: JSON.stringify({ message: text }),
+            // })
+            // // setTimeout(() => {
+            // //     const aiResponse = `I received your request: "${text}". I am ready to process this using the Gemini API!`;
+            // //     addMessage(aiResponse, 'system');
+            // // }, 700);
+            // .then(res => res.json())
+            // .then(data => {
+            //     addMessage(data.response, "system");
+            // })
+            // .catch(err => {
+            //     addMessage("⚠️ Error contacting AI server.", "system");
+            //     console.error(err);
+            // });
+
+            fetch("/api/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: text }),
+        })
+
 
         });
 

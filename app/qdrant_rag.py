@@ -91,22 +91,67 @@ def insert_data(user_id: int, text: str, url: Optional[str] = None, metadata: Op
     print(f"Data inserted for user_id: {user_id}")
 
 
-def retrieve_data(user_id: int, query: str, top_k: int = 5):
-    """Retrieve data from Qdrant collection filtered by user_id."""
+def retrieve_data(user_id: int, query: str, top_k: int = 5, metadata: Optional[dict] = None):
+    """Retrieve data from Qdrant collection filtered by user_id and metadata."""
     client = QdrantClient(host="qdrant", port=6333)
-    query_embedding = embed_text(query)
+    query_embedding = embed_text(query).tolist()  # ensure it's a list
 
-    must_conditions = [FieldCondition(key="user_id", match=MatchValue(value=user_id))]
+    must_conditions = [
+        FieldCondition(key="user_id", match=MatchValue(value=user_id))
+    ]
     
     if metadata:
-        for key in ["industry","type","topic","tone"]:
+        for key in ["industry", "type", "topic", "tone"]:
             if key in metadata and metadata[key]:
                 must_conditions.append(FieldCondition(key=key, match=MatchValue(value=metadata[key])))
 
-    search_result = client.search(
+    # Use query_points instead of search
+    search_result = client.search_points(
         collection_name="marketing_data",
         query_vector=query_embedding,
-        limit=top_k,
-        query_filter=Filter(must=must_conditions)
+        top=top_k,
+        filter=Filter(must=must_conditions)
     )
-    return [hit.payload for hit in search_result ]
+
+    return [hit.payload for hit in search_result]
+
+
+# from qdrant_client import QdrantClient
+
+
+# qdrant = QdrantClient(
+#     host="qdrant",
+#     port=6333
+# )
+
+
+# from qdrant_client.http.models import Filter, FieldCondition, MatchValue
+
+# def search_knowledge(user_id: int, query: str, top_k: int = 5):
+#     """
+#     Searches Qdrant using vector similarity.
+#     Works with SentenceTransformer embeddings.
+#     """
+#     # 1️⃣ Embed the query
+#     query_vector = embed_text(query).tolist()
+
+#     # 2️⃣ Build user filter
+#     user_filter = Filter(
+#         must=[
+#             FieldCondition(key="user_id", match=MatchValue(value=user_id))
+#         ]
+#     )
+
+#     # 3️⃣ Query Qdrant using vector
+#     results = qdrant.query_points(
+#         collection_name="marketing_data",
+#         vector=query_vector,
+#         limit=top_k,
+#         query_filter=user_filter
+#     )
+
+#     return results.points
+
+
+
+

@@ -32,7 +32,7 @@ from app.qdrant_rag import create_qdrant_collection
 async def lifespan(app: FastAPI):
     # Startup: Create tables before the app starts serving requests
     create_qdrant_collection()
-    await create_db_and_tables()
+    # await create_db_and_tables()
     yield
 
 app = FastAPI(lifespan=lifespan)
@@ -255,7 +255,7 @@ async def handle_logout(response: Response):
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from app.agent import generate_search_questions, generate_answer
+from app.agent import generate_search_questions, generate_answer, generate_content_with_rag
 from app.qdrant_rag import insert_data
 
 @app.post("/api/chat")
@@ -316,7 +316,39 @@ async def chat_api(
             print(f"Failed to save Q&A: {question}. Error: {e}")
 
     # 3️⃣ Return all saved questions+answers
-    return JSONResponse({"response": "\n\n".join(saved_items)})
+    return JSONResponse({"response": "Your research data has been saved."})
+
+@app.post("/api/generate")
+async def generate_api(request: Request, session: SessionDep, user: ActiveUser):
+    data = await request.json()
+    user_request = data.get("message")
+
+    content = await generate_content_with_rag(
+        user_id=user.id,
+        user_request=user_request
+    )
+
+    return JSONResponse({"response": content})
+
+@app.post("/api/content")
+async def content_api(
+    request: Request,
+    session: SessionDep,
+    user: ActiveUser
+):
+    data = await request.json()
+    user_request = data.get("message")
+
+    result = await session.exec(select(UserProfile).where(UserProfile.user_id == user.id))
+    profile = result.one_or_none()
+
+    if not profile:
+        return JSONResponse({"response": "Please complete your marketing profile first."})
+
+    # Generate using RAG
+    content = await generate_content_with_rag(user.id, user_request)
+
+    return JSONResponse({"response": content})
 
 
 

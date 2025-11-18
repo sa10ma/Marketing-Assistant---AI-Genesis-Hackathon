@@ -1,4 +1,5 @@
 import os
+from app.qdrant_rag import retrieve_data
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import PromptTemplate
 from langchain_core.messages import HumanMessage
@@ -90,3 +91,47 @@ async def generate_answer(question, company_name, product_description, target_au
 
     response = await gemini.ainvoke([HumanMessage(content=final_prompt)])
     return response.content.strip()
+
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+import os
+
+GOOGLE_API_KEY = os.environ.get("GEMINI_API_KEY")
+
+gemini = ChatGoogleGenerativeAI(
+    model="gemini-2.5-flash-lite",
+    google_api_key=GOOGLE_API_KEY
+)
+
+
+async def generate_content_with_rag(user_id: int, user_request: str, metadata: dict = None):
+    """
+    Generate content for the user using RAG knowledge from Qdrant.
+    If no relevant knowledge, generate content anyway.
+    """
+    # 1️⃣ Retrieve relevant data from RAG
+    retrieved = retrieve_data(user_id=user_id, query=user_request, top_k=5, metadata=metadata)
+    
+    # 2️⃣ Combine retrieved knowledge into context
+    context = "\n".join([item.get("text", "") + "\nAnswer: " + item.get("answer", "") for item in retrieved])
+
+    if not context:
+        context = "No relevant previous data found. Generate content based on general knowledge."
+
+    # 3️⃣ Build prompt for Gemini
+    prompt = f"""
+You are a marketing expert AI.
+
+User request:
+{user_request}
+
+Relevant previous knowledge (from RAG):
+{context}
+
+Write a high-quality marketing output based on the request.
+If no relevant data is available, generate the best answer you can.
+"""
+
+    # 4️⃣ Generate AI response
+    response = await gemini.ainvoke([HumanMessage(content=prompt)])
+    return response.content
