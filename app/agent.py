@@ -1,38 +1,57 @@
 import os
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.prompts import PromptTemplate
-from langchain.schema import HumanMessage, AIMessage
+from langchain.schema import HumanMessage
 
-GOOLGE_API_KEY = os.environ.get("GEMINI_API_KEY")
-# Initialize Gemini model
+GOOGLE_API_KEY = os.environ.get("GEMINI_API_KEY")
+
 gemini = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash-lite",
-    google_api_key=GOOLGE_API_KEY
+    google_api_key=GOOGLE_API_KEY
 )
 
-# Custom prompt template for marketing agent
-MARKETING_PROMPT = """
-You are a professional marketing strategist AI for the company: {company_name}.
-Your job is to answer the user's request with actionable, creative, and structured marketing insights.
+SEARCH_PROMPT = """
+You are an AI marketing strategist.
 
-User message:
-{user_message}
+Based on the business information provided, generate between 5 and 12 **high-quality web search questions** 
+that would help gather research insights.
 
-Respond professionally and concisely.
+Company Name: {company_name}
+Product Description: {product_description}
+Target Audience: {target_audience}
+Tone of Voice: {tone}
+
+IMPORTANT:
+- Return ONLY a JSON array of strings.
+- Do NOT include markdown (```) or any extra text.
+- The JSON array should look like this: ["Question 1", "Question 2", ...].
+
+Generate questions that:
+- Are relevant to the business
+- Will enhance marketing strategies
+- Are search-engine friendly
 """
 
 prompt = PromptTemplate(
-    input_variables=["company_name", "user_message"],
-    template=MARKETING_PROMPT
+    input_variables=["company_name", "product_description", "target_audience", "tone"],
+    template=SEARCH_PROMPT,
 )
 
-async def generate_ai_response(company_name: str, user_message: str):
-    """Generate marketing response using Gemini through LangChain."""
-    
+async def generate_search_questions(company_name, product_description, target_audience, tone):
     final_prompt = prompt.format(
-        company_name = company_name,
-        user_message = user_message
+        company_name=company_name,
+        product_description=product_description,
+        target_audience=target_audience,
+        tone=tone
     )
-    
-    response = gemini.invoke([HumanMessage(content=final_prompt)])
-    return response.content
+
+    # IMPORTANT: async call
+    response = await gemini.ainvoke([HumanMessage(content=final_prompt)])
+
+    import json
+    try:
+        questions = json.loads(response.content)
+        return questions
+    except Exception as e:
+        print("JSON parse error:", e, "Raw response:", response.content)
+        return []

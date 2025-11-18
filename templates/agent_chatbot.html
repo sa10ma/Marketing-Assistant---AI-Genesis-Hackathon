@@ -184,7 +184,7 @@
             })
             .then(res => res.json())
             .then(data => {
-                addMessage(data.response, "system");
+                return JSONResponse({"response": "\n".join(questions)})
             })
             .catch(err => {
                 addMessage("⚠️ Error contacting AI server.", "system");

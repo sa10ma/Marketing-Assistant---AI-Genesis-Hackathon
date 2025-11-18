@@ -25,30 +25,38 @@ def embed_text(text: str):
     "Embed text using SentenceTransformer model."
     return model.encode(text, convert_to_numpy=True)
 
-def insert_data(user_id: int, text: str,url:Optional[str]=None,metadata:Optional[dict[str,Any]]=None):
+def insert_data(user_id: int, text: str, url: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None):
     """Insert embedded data into Qdrant collection with user_id filter."""
     client = QdrantClient(host="qdrant", port=6333)
     
     if metadata is None:
         metadata = {}
     
-    payload={
+    # Make metadata JSON-serializable
+    metadata_safe = {k: str(v) if not isinstance(v, (str, int, float, bool, list, dict)) else v 
+                     for k, v in metadata.items()}
+    
+    payload = {
         "user_id": user_id,
         "text": text,
         "source_url": url or "",
-        **metadata
+        **metadata_safe
     }
 
-    embedding = embed_text(text)
+    embedding = embed_text(text).tolist()  # <-- important: convert NumPy array to list
 
-    point = {"id": str(uuid.uuid4()),
-        "vector": embedding,"payload":payload}
-        
+    point = {
+        "id": str(uuid.uuid4()),
+        "vector": embedding,
+        "payload": payload
+    }
+    
     client.upsert(
         collection_name="marketing_data",
         points=[point]
     )
     print(f"Data inserted for user_id: {user_id}")
+
 
 def retrieve_data(user_id: int, query: str, top_k: int = 5):
     """Retrieve data from Qdrant collection filtered by user_id."""
