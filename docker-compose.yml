@@ -38,30 +38,30 @@ services:
       
     # Ensures the agent service waits until Postgres and Qdrant are ready
     depends_on:
-      - postgres
+      #- postgres
       - qdrant
 
   # ----------------------------------------------------
   # 2. PostgreSQL Database (Official Image)
   # ----------------------------------------------------
-  postgres:
-    image: postgres:16-alpine
-    container_name: postgres-db
-    restart: unless-stopped
+  #postgres:
+    #image: postgres:16-alpine
+    #container_name: postgres-db
+    #restart: unless-stopped
     
     # Expose the database port (optional, but useful for external tools like PgAdmin)
-    ports:
-      - "5432:5432"
+    #ports:
+      #- "5432:5432"
       
     # Environment variables for initial setup and credentials
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+    #environment:
+      #POSTGRES_USER: ${POSTGRES_USER}
+      #POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      #POSTGRES_DB: ${POSTGRES_DB}
       
     # Volume for data persistence: NOW USING A NAMED VOLUME
-    volumes:
-      - postgres_data:/var/lib/postgresql/data # FIXED: Replaced bind mount with named volume
+    #volumes:
+      #- postgres_data:/var/lib/postgresql/data # FIXED: Replaced bind mount with named volume
       
   # ----------------------------------------------------
   # 3. Qdrant Vector Database (Official Image)
@@ -82,5 +82,5 @@ services:
 
 # Define the named volumes outside the services block (crucial for Option 1)
 volumes:
-  postgres_data:
+  #postgres_data:
   qdrant_storage:
