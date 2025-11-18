@@ -5,10 +5,10 @@ from datetime import timedelta, timezone
 import datetime 
 
 from fastapi import FastAPI, Depends, Request, Form, status, Response
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-
+from app.agent import generate_search_questions, generate_answer, generate_content_with_rag
 from sqlmodel import select
 
 from app.database.db import create_db_and_tables, SessionDep
@@ -23,7 +23,7 @@ from app.services.authentication import (
 )
 
 from app.database.db_schema import User, UserProfile 
-from app.qdrant_rag import create_qdrant_collection
+from app.qdrant_rag import create_qdrant_collection, insert_data
 
 
 # --- Application Lifespan ---
@@ -75,7 +75,6 @@ async def show_agent(
         context={"request": request, "user_id": user.id, "profile":profile}
     )
 
-#agent post endpoint TODO
 
 # 1c. Sign Up Page
 @app.get("/signup", response_class=HTMLResponse)
@@ -211,6 +210,13 @@ async def handle_profile_submit(
     # Using the reliably loaded user_id
     result = await session.exec(select(UserProfile).where(UserProfile.user_id == user_id))
     profile = result.one_or_none()
+
+    profile_data_qdrant = {
+        "Company Name": company_name,
+        "Product Description": product_description,
+        "Target Audience": target_audience,
+        "Tone of Voice": tone_of_voice,
+    }
     
     if profile:
         # Update existing profile
@@ -227,10 +233,17 @@ async def handle_profile_submit(
             target_audience=target_audience,
             tone_of_voice=tone_of_voice,
         )
-    
+
     session.add(profile)
     await session.commit()
     await session.refresh(profile)
+    
+    qdrant_metadata = {"source": "User Profile Form"}
+    insert_data(
+        user_id=user_id, 
+        profile_data=profile_data_qdrant, 
+        metadata=qdrant_metadata
+    )
     
     # 2. Prepare Redirect Response to /agent
     response = RedirectResponse(url="/agent", status_code=status.HTTP_303_SEE_OTHER)
@@ -253,17 +266,14 @@ async def handle_logout(response: Response):
         status_code=status.HTTP_303_SEE_OTHER
     )
 
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-from app.agent import generate_search_questions, generate_answer, generate_content_with_rag
-from app.qdrant_rag import insert_data
-
 @app.post("/api/chat")
-async def chat_api(
+async def gather_info_web(
     request: Request,
     session: SessionDep,
     user: ActiveUser
 ):
+    
+    """ Generate insightful questions, calls web search, and saves answer to Qdrant """
     data = await request.json()
     user_message = data.get("message", "")
 
@@ -320,33 +330,16 @@ async def chat_api(
 
 @app.post("/api/generate")
 async def generate_api(request: Request, session: SessionDep, user: ActiveUser):
+    """ appends user query with relevant info from RAG and passes it to final generative llm """
     data = await request.json()
     user_request = data.get("message")
+
+    # TODO extract_metada
 
     content = await generate_content_with_rag(
         user_id=user.id,
         user_request=user_request
     )
-
-    return JSONResponse({"response": content})
-
-@app.post("/api/content")
-async def content_api(
-    request: Request,
-    session: SessionDep,
-    user: ActiveUser
-):
-    data = await request.json()
-    user_request = data.get("message")
-
-    result = await session.exec(select(UserProfile).where(UserProfile.user_id == user.id))
-    profile = result.one_or_none()
-
-    if not profile:
-        return JSONResponse({"response": "Please complete your marketing profile first."})
-
-    # Generate using RAG
-    content = await generate_content_with_rag(user.id, user_request)
 
     return JSONResponse({"response": content})
 

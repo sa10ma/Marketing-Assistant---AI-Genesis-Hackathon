@@ -6,11 +6,18 @@
 import uuid
 from langchain_google_genai import ChatGoogleGenerativeAI
 from qdrant_client import QdrantClient
-from qdrant_client.models import VectorParams, Distance, PointStruct,Filter, FieldCondition, MatchValue
+from qdrant_client.models import VectorParams, Distance, PointStruct,Filter, FieldCondition, MatchValue, MatchAny, MustNot
 from sentence_transformers import SentenceTransformer
-from typing import Optional, Any,Dict
+from typing import Optional, Any,Dict, List
 import json
 import os
+
+CORE_PROFILE_TYPES = [
+    "Company Name",
+    "Product Description",
+    "Target Audience",
+    "Tone of Voice",
+]
 
 def create_qdrant_collection():
     """Create a Qdrant collection for storing marketing data."""
@@ -58,62 +65,183 @@ def extract_metadata(user_prompt: str):
             metadata[key]=user_input
     return metadata
 
-def insert_data(user_id: int, text: str, url: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None):
-    """Insert embedded data into Qdrant collection with user_id filter."""
+def insert_data(user_id: int, data: Dict[str, str], metadata: Optional[Dict[str, Any]] = None):
+    """
+    Inserts data (e.g., business profile chunks or research results) into Qdrant.
+    It takes a dictionary of {title: content_text} and creates multiple points, 
+    using the 'title' as the chunk's 'type' in the payload.
+    
+    Args:
+        user_id: ID of the user owning the data.
+        data: Dictionary where keys are chunk titles (e.g., 'Target Audience')
+                      and values are the text content.
+        metadata: Optional dictionary of generic metadata to apply to all chunks 
+                  (e.g., date_added, source).
+    """
     client = QdrantClient(host="qdrant", port=6333)
+    points_to_insert: List[PointStruct] = []
     
     if metadata is None:
         metadata = {}
     
-    # Make metadata JSON-serializable
+    # Pre-process general metadata (applied to all chunks)
     metadata_safe = {k: str(v) if not isinstance(v, (str, int, float, bool, list, dict)) else v 
                      for k, v in metadata.items()}
-    
-    payload = {
-        "user_id": user_id,
-        "text": text,
-        "source_url": url or "",
-        **metadata_safe
-    }
 
-    embedding = embed_text(text).tolist()  # <-- important: convert NumPy array to list
+    # Iterate over the provided profile data to create multiple points
+    for title, text_content in data.items():
+        if not text_content:
+            continue # Skip empty data
 
-    point = {
-        "id": str(uuid.uuid4()),
-        "vector": embedding,
-        "payload": payload
-    }
-    
-    client.upsert(
-        collection_name="marketing_data",
-        points=[point]
-    )
-    print(f"Data inserted for user_id: {user_id}")
+        # 1. Embed the content
+        embedding = embed_text(text_content).tolist() 
 
+        # 2. Construct the chunk-specific payload
+        payload = {
+            "user_id": user_id,
+            "text": text_content,       # The actual content to be retrieved
+            "type": title,              # The descriptive title/field name (e.g., "Target Audience")
+            **metadata_safe             # Other generic metadata
+        }
 
-def retrieve_data(user_id: int, query: str, top_k: int = 5, metadata: Optional[dict] = None):
-    """Retrieve data from Qdrant collection filtered by user_id and metadata."""
+        # 3. Create the Qdrant PointStruct
+        point = PointStruct(
+            id=str(uuid.uuid4()),
+            vector=embedding,
+            payload=payload
+        )
+        points_to_insert.append(point)
+
+    # Perform batch upsert
+    if points_to_insert:
+        client.upsert(
+            collection_name="marketing_data",
+            points=points_to_insert,
+            wait=True # Wait for the operation to complete for reliable testing
+        )
+        print(f"Batch data inserted: {len(points_to_insert)} chunks for user_id: {user_id}")
+    else:
+        print("No data provided to insert.")
+
+def retrieve_data(user_id: int, query: str, top_k: int = 5):
+    """
+    Retrieve data using a two-pronged approach: 
+    1. Guaranteed retrieval of core profile data (via filters).
+    2. Contextual retrieval of relevant research data (via vector search).
+    """
     client = QdrantClient(host="qdrant", port=6333)
-    query_embedding = embed_text(query).tolist()  # ensure it's a list
+    query_embedding = embed_text(query).tolist()
+    
+    all_retrieved_payloads = []
 
+    # --- PRONG 1: GUARANTEED CORE PROFILE RETRIEVAL (NON-SEMANTIC) ---
+    profile_filter = Filter(
+        must=[
+            FieldCondition(key="user_id", match=MatchValue(value=user_id)),
+            FieldCondition(key="type", match=MatchAny(any=CORE_PROFILE_TYPES))
+        ]
+    )
+    
+    # Use the client.scroll method for guaranteed retrieval without a vector
+    profile_results, _ = client.scroll(
+        collection_name="marketing_data",
+        scroll_filter=profile_filter,
+        limit=len(CORE_PROFILE_TYPES) * 2, 
+        with_payload=True,
+    )
+    
+    all_retrieved_payloads.extend([hit.payload for hit in profile_results])
+
+    # --- PRONG 2: CONTEXTUAL RESEARCH RETRIEVAL (SEMANTIC SEARCH) ---
+    # Goal: Retrieve the most relevant market research/campaign data based on the query.
+    
+    # Must: Filter by user_id
     must_conditions = [
         FieldCondition(key="user_id", match=MatchValue(value=user_id))
     ]
     
-    if metadata:
-        for key in ["industry", "type", "topic", "tone"]:
-            if key in metadata and metadata[key]:
-                must_conditions.append(FieldCondition(key=key, match=MatchValue(value=metadata[key])))
-
-    # Use query_points instead of search
-    search_result = client.search_points(
-        collection_name="marketing_data",
-        query_vector=query_embedding,
-        top=top_k,
-        filter=Filter(must=must_conditions)
+    # MustNot: Exclude the core profile types already retrieved
+    must_not_conditions = [
+        FieldCondition(key="type", match=MatchAny(any=CORE_PROFILE_TYPES))
+    ]
+    
+    search_filter = Filter(
+        must=must_conditions,
+        must_not=must_not_conditions
     )
 
-    return [hit.payload for hit in search_result]
+    search_result = client.query_points(
+        collection_name= "marketing_data",
+        vector=query_embedding,
+        limit=top_k, 
+        query_filter=search_filter,
+        with_payload=True 
+    )
+
+    # Combine and deduplicate the results
+    all_retrieved_payloads.extend([hit.payload for hit in search_result])
+    
+    return all_retrieved_payloads
+
+
+# def insert_data(user_id: int, text: str, metadata: Optional[Dict[str, Any]] = None):
+#     """Insert embedded data into Qdrant collection with user_id filter."""
+#     client = QdrantClient(host="qdrant", port=6333)
+    
+#     if metadata is None:
+#         metadata = {}
+    
+#     # Make metadata JSON-serializable
+#     metadata_safe = {k: str(v) if not isinstance(v, (str, int, float, bool, list, dict)) else v 
+#                      for k, v in metadata.items()}
+    
+#     payload = {
+#         "user_id": user_id,
+#         "text": text,
+#         **metadata_safe
+#     }
+
+#     embedding = embed_text(text).tolist()  # <-- important: convert NumPy array to list
+
+#     point = {
+#         "id": str(uuid.uuid4()),
+#         "vector": embedding,
+#         "payload": payload
+#     }
+    
+#     client.upsert(
+#         collection_name="marketing_data",
+#         points=[point]
+#     )
+#     print(f"Data inserted for user_id: {user_id}")
+
+
+# def retrieve_data(user_id: int, query: str, top_k: int = 5, metadata: Optional[dict] = None):
+#     """Retrieve data from Qdrant collection filtered by user_id and metadata."""
+#     client = QdrantClient(host="qdrant", port=6333)
+#     query_embedding = embed_text(query).tolist()  # ensure it's a list
+
+#     must_conditions = [
+#         FieldCondition(key="user_id", match=MatchValue(value=user_id))
+#     ]
+    
+#     if metadata:
+#         for key in ["industry", "type", "topic", "tone"]:
+#             if key in metadata and metadata[key]:
+#                 must_conditions.append(FieldCondition(key=key, match=MatchValue(value=metadata[key])))
+
+#     # Use query_points instead of search
+#     search_result = client.query_points(
+#         collection_name="marketing_data",
+#         query=query_embedding,
+#         #top=top_k,
+#         query_filter=Filter(must=must_conditions),
+#         with_payload= True
+#     )
+
+#     print("searchhh resultlttsssssss", search_result)
+#     return [hit for hit in search_result]
+
 
 
 # from qdrant_client import QdrantClient
