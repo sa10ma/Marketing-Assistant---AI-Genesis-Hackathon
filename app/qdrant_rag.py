@@ -58,7 +58,6 @@ def extract_metadata(user_prompt: str):
             metadata[key]=user_input
     return metadata
 
-def insert_data(user_id: int, text: str,url:Optional[str]=None,metadata:Optional[dict[str,Any]]=None):
 def insert_data(user_id: int, text: str, url: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None):
     """Insert embedded data into Qdrant collection with user_id filter."""
     client = QdrantClient(host="qdrant", port=6333)

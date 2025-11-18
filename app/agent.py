@@ -1,7 +1,7 @@
 import os
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.prompts import PromptTemplate
-from langchain.schema import HumanMessage
+from langchain_core.prompts import PromptTemplate
+from langchain_core.messages import HumanMessage
 
 GOOGLE_API_KEY = os.environ.get("GEMINI_API_KEY")
 
@@ -74,8 +74,6 @@ IMPORTANT:
 """
 
 async def generate_answer(question, company_name, product_description, target_audience, tone):
-    from langchain.prompts import PromptTemplate
-    from langchain.schema import HumanMessage
 
     prompt = PromptTemplate(
         input_variables=["question", "company_name", "product_description", "target_audience", "tone"],
