@@ -255,7 +255,7 @@ async def handle_logout(response: Response):
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from app.agent import generate_search_questions
+from app.agent import generate_search_questions, generate_answer
 from app.qdrant_rag import insert_data
 
 @app.post("/api/chat")
@@ -264,55 +264,60 @@ async def chat_api(
     session: SessionDep,
     user: ActiveUser
 ):
-    # 1️⃣ Get user message
     data = await request.json()
     user_message = data.get("message", "")
 
-    # 2️⃣ Load user profile from DB
-    result = await session.exec(
-        select(UserProfile).where(UserProfile.user_id == user.id)
-    )
+    result = await session.exec(select(UserProfile).where(UserProfile.user_id == user.id))
     profile = result.one_or_none()
 
     if not profile:
         return JSONResponse({"response": "No profile found. Please complete your marketing profile first."})
 
-    # 3️⃣ Extract profile data
     company_name = profile.company_name
     product_description = profile.product_description
     target_audience = profile.target_audience
     tone = profile.tone_of_voice
 
-    # 4️⃣ Generate AI response
+    # 1️⃣ Generate questions
     questions = await generate_search_questions(
         company_name,
         product_description,
         target_audience,
         tone
     )
-
-    # Ensure we have a list
     if isinstance(questions, str):
         questions = [questions]
 
-    # 5️⃣ Save each question in Qdrant
-    saved_questions = []
+    saved_items = []
+
+    # 2️⃣ Generate answer for each question and save both
     for question in questions:
         try:
+            answer = await generate_answer(
+                question,
+                company_name,
+                product_description,
+                target_audience,
+                tone
+            )
+            # Save to Qdrant (or DB)
             insert_data(
                 user_id=user.id,
                 text=question,
                 metadata={
+                    "answer": answer,
                     "user_message": user_message,
                     "company_name": company_name,
                     "product_description": product_description
                 }
             )
-            saved_questions.append(question)
+            saved_items.append(f"Q: {question}\nA: {answer}")
         except Exception as e:
-            print(f"Failed to insert question: {question}. Error: {e}")
+            print(f"Failed to save Q&A: {question}. Error: {e}")
 
-    # 6️⃣ Return all saved questions
-    return JSONResponse({"response": saved_questions})
+    # 3️⃣ Return all saved questions+answers
+    return JSONResponse({"response": "\n\n".join(saved_items)})
+
+
 
 
