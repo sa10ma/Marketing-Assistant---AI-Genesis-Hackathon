@@ -16,26 +16,47 @@ gemini = ChatGoogleGenerativeAI(
 async def generate_search_questions(company_name, product_description, target_audience, tone):
     print("\n\nhi from seach agent\n\n")
     SEARCH_PROMPT = """
-        You are an AI marketing strategist.
+        You are an AI marketing strategist with the ability to request and leverage user-specific memory 
+        (if available). Your goal is to generate between 2 and 5 high-quality web search questions that 
+        support strong marketing research.
 
-        Based on the business information provided, generate between 2 and 5 **high-quality web search questions** 
-        that would help gather research insights.
-
+        Business Inputs:
         Company Name: {company_name}
         Product Description: {product_description}
         Target Audience: {target_audience}
         Tone of Voice: {tone}
 
-        IMPORTANT:
-        - Return ONLY a JSON array of strings.
-        - Do NOT include markdown (```) or any extra text.
-        - The JSON array should look like this: ["Question 1", "Question 2", ...].
+        Before generating questions:
+        - Check whether any key business information is missing or unclear.
+        - If something important is missing (e.g., company name, target audience specifics, product positioning, goals),
+        respond with a JSON object of the form:
+        {
+            "need_more_info": true,
+            "questions": ["Ask the user this clarification question..."]
+        }
+        Do NOT generate search questions yet.
 
-        Generate questions that:
-        - Are relevant to the business
-        - Will enhance marketing strategies
-        - Are search-engine friendly
-        """
+        If all required information is present:
+        - Suggest useful memory items (such as business name, target audience, tone), using the field:
+        "memory_suggestions": ["item1", "item2"]
+        - Then generate the search questions.
+
+        OUTPUT FORMAT (strict):
+        Return ONLY a JSON object, no markdown and no extra commentary.
+
+        If all information is available, return:
+        {
+        "need_more_info": false,
+        "memory_suggestions": ["example item 1", "example item 2"],
+        "search_questions": ["Question 1", "Question 2", ...]
+        }
+
+        Guidelines for search questions:
+        - They must be actionable and research-oriented.
+        - They must be relevant to the business.
+        - They must enhance strategic marketing.
+        - They should be search-engine-friendly.
+    """
 
     prompt = PromptTemplate(
     input_variables=["company_name", "product_description", "target_audience", "tone"],
