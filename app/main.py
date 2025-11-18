@@ -8,11 +8,11 @@ from fastapi import FastAPI, Depends, Request, Form, status, Response
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from app.agent import generate_search_questions, generate_answer, generate_content_with_rag
+from .agent import generate_search_questions, generate_answer, generate_content_with_rag
 from sqlmodel import select
 
-from app.database.db import create_db_and_tables, SessionDep
-from app.services.authentication import (
+from .database.db import create_db_and_tables, SessionDep
+from .services.authentication import (
     create_access_token, 
     ActiveUser, 
     ActiveUserID, # <-- IMPORTED ActiveUserID
@@ -22,8 +22,8 @@ from app.services.authentication import (
     PasswordHasher
 )
 
-from app.database.db_schema import User, UserProfile 
-from app.qdrant_rag import create_qdrant_collection, insert_data
+from .database.db_schema import User, UserProfile 
+from .qdrant_rag import create_qdrant_collection, insert_data
 
 
 # --- Application Lifespan ---
