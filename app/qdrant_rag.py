@@ -4,12 +4,13 @@
 - put the data in qdrant
 - search with filter by user id"""
 import uuid
-import google.generativeai as genai
+from langchain_google_genai import ChatGoogleGenerativeAI
 from qdrant_client import QdrantClient
 from qdrant_client.models import VectorParams, Distance, PointStruct,Filter, FieldCondition, MatchValue
 from sentence_transformers import SentenceTransformer
 from typing import Optional, Any,Dict
 import json
+import os
 
 def create_qdrant_collection():
     """Create a Qdrant collection for storing marketing data."""
@@ -29,16 +30,20 @@ def embed_text(text: str):
 def extract_metadata(user_prompt: str):
     """Extracts metadata from user prompt and asks for missing or unclear data 
     returns a dictionary"""
-    response=GenerativeModel('gemini-pro').generate_content(
-        f"""
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-1.5-flash",
+        api_key=os.getenv("GEMINI_API_KEY")
+    )
+
+    prompt=f"""
         Extract structured metadata from the user prompt .
         Output as json with keys: industry ,type ,topic ,tone.
         User prompt: {user_prompt}
     """
-    )
+    response = llm.invoke(prompt).content
 
     try:
-        metadata=json.loads(response.text)
+        metadata=json.loads(response)
     except:
         metadata={
             "industry": None,
@@ -48,7 +53,7 @@ def extract_metadata(user_prompt: str):
         }
 
     for key in ["industry","type","topic","tone"]:
-        if not metadata.get(key) or metadata[key].lower() in ["unknown","none","n/a","not specified"]:  
+        if not metadata.get(key):  
             user_input=input(f"Please provide the {key} for your request: ")
             metadata[key]=user_input
     return metadata
@@ -81,8 +86,11 @@ def insert_data(user_id: int, text: str,url:Optional[str]=None,metadata:Optional
 
 def generate_retrieval_query(user_prompt: str):
     """Generate a retrieval queries based on user prompt."""
-    response = genai.GenerativeModel("gemini-pro").generate_content(
-    f"""
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-1.5-flash",
+        api_key=os.getenv("GEMINI_API_KEY")
+    )
+    prompt= f"""
     Generate 5 short search queries that help retrieve:
     - product information
     - marketing strategies
@@ -90,9 +98,9 @@ def generate_retrieval_query(user_prompt: str):
     - company description
     based on the following user prompt: {user_prompt}
     """
-    )
-    queries=response.text.strip().split("\n")
-    return [query.strip("-. ").strip() for query in queries if query.strip()]
+    response = llm.invoke(prompt).content
+    queries = response.split("\n")
+    return [q.strip("-• ").strip() for q in queries if q.strip()]
 
 def retrieve_data(user_id: int,query: str, top_k: int = 5,metadata:Optional[dict]=None):
     """Retrieve data from Qdrant collection filtered by user_id and metadata."""
