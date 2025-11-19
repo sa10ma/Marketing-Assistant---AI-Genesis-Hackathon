@@ -1,6 +1,6 @@
 import os
 import json
-from qdrant_rag import retrieve_data
+from .qdrant_rag import retrieve_data
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import PromptTemplate
 from langchain_core.messages import HumanMessage
