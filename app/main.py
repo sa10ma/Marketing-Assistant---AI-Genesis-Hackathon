@@ -5,14 +5,14 @@ from datetime import timedelta, timezone
 import datetime 
 
 from fastapi import FastAPI, Depends, Request, Form, status, Response
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-
+from .agent import generate_search_questions, generate_answer, generate_content_with_rag
 from sqlmodel import select
 
-from app.database.db import create_db_and_tables, SessionDep
-from app.services.authentication import (
+from .database.db import create_db_and_tables, SessionDep
+from .services.authentication import (
     create_access_token, 
     ActiveUser, 
     ActiveUserID, # <-- IMPORTED ActiveUserID
@@ -22,8 +22,8 @@ from app.services.authentication import (
     PasswordHasher
 )
 
-from app.database.db_schema import User, UserProfile 
-from app.qdrant_rag import create_qdrant_collection
+from .database.db_schema import User, UserProfile 
+from .qdrant_rag import create_qdrant_collection, insert_data
 
 
 # --- Application Lifespan ---
@@ -32,7 +32,7 @@ from app.qdrant_rag import create_qdrant_collection
 async def lifespan(app: FastAPI):
     # Startup: Create tables before the app starts serving requests
     create_qdrant_collection()
-    await create_db_and_tables()
+    # await create_db_and_tables()
     yield
 
 app = FastAPI(lifespan=lifespan)
@@ -75,7 +75,6 @@ async def show_agent(
         context={"request": request, "user_id": user.id, "profile":profile}
     )
 
-#agent post endpoint TODO
 
 # 1c. Sign Up Page
 @app.get("/signup", response_class=HTMLResponse)
@@ -211,6 +210,13 @@ async def handle_profile_submit(
     # Using the reliably loaded user_id
     result = await session.exec(select(UserProfile).where(UserProfile.user_id == user_id))
     profile = result.one_or_none()
+
+    profile_data_qdrant = {
+        "Company Name": company_name,
+        "Product Description": product_description,
+        "Target Audience": target_audience,
+        "Tone of Voice": tone_of_voice,
+    }
     
     if profile:
         # Update existing profile
@@ -227,10 +233,16 @@ async def handle_profile_submit(
             target_audience=target_audience,
             tone_of_voice=tone_of_voice,
         )
-    
+
     session.add(profile)
     await session.commit()
     await session.refresh(profile)
+    
+    insert_data(
+        user_id=user_id, 
+        data=profile_data_qdrant, 
+        type = "profile_core"
+    )
     
     # 2. Prepare Redirect Response to /agent
     response = RedirectResponse(url="/agent", status_code=status.HTTP_303_SEE_OTHER)
@@ -252,3 +264,78 @@ async def handle_logout(response: Response):
         url="/login", 
         status_code=status.HTTP_303_SEE_OTHER
     )
+
+@app.post("/api/chat")
+async def gather_info_web(
+    request: Request,
+    session: SessionDep,
+    user: ActiveUser
+):
+    
+    """ Generate insightful questions, calls web search, and saves answer to Qdrant """
+
+    result = await session.exec(select(UserProfile).where(UserProfile.user_id == user.id))
+    profile = result.one_or_none()
+
+    if not profile:
+        return JSONResponse({"response": "No profile found. Please complete your marketing profile first."})
+
+    company_name = profile.company_name
+    product_description = profile.product_description
+    target_audience = profile.target_audience
+    tone = profile.tone_of_voice
+
+    # 1️⃣ Generate questions
+    questions = await generate_search_questions(
+        company_name,
+        product_description,
+        target_audience,
+        tone
+    )
+    if isinstance(questions, str):
+        questions = [questions]
+
+    saved_items = {}
+
+    # 2️⃣ Generate answer for each question and save both
+    for question in questions:
+        try:
+            answer = await generate_answer(
+                question,
+                company_name,
+                product_description,
+                target_audience,
+                tone
+            )
+
+            saved_items[question] = answer
+        except Exception as e:
+            print(f"Failed to save Q&A: {question}. Error: {e}")
+
+    print(f"\n\nSAVED ITEMS: {saved_items}\n\n")
+    insert_data(
+    user_id=user.id,
+    data=saved_items,
+    type = "question_answer"
+    )
+
+    # 3️⃣ Return all saved questions+answers
+    return JSONResponse({"response": "Your research data has been saved."})
+
+@app.post("/api/generate")
+async def generate_api(request: Request, session: SessionDep, user: ActiveUser):
+    """ appends user query with relevant info from RAG and passes it to final generative llm """
+    data = await request.json()
+    user_request = data.get("message")
+
+    print(f"\n\nuser requrest: {user_request}\n\n")
+    content = await generate_content_with_rag(
+        user_id=user.id,
+        user_request=user_request
+    )
+    print(f"\n\nthis is the content {content}")
+    return JSONResponse({"reply": content})
+
+
+
+

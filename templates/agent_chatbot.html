@@ -176,15 +176,41 @@
             userInput.value = '';
             autoExpand(); // Reset height back to min-height
 
-            // 3. Simulate AI response (Replace with actual API call)
-            setTimeout(() => {
-                const aiResponse = `I received your request: "${text}". I am ready to process this using the Gemini API!`;
-                addMessage(aiResponse, 'system');
-            }, 700);
+
+            fetch("/api/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: text }),
+            })
+
+            .then(res => res.json())
+            .then(data => {
+                // 4. Display AI/bot response in UI
+                if (data.reply) {
+                    addMessage(data.reply, 'bot');
+                } else {
+                    addMessage("No response from server.", 'bot');
+                }
+            })
+
+
         });
 
         // Initial scroll to show the welcome message
         scrollToBottom();
     });
+
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // 🔥 Automatically trigger first gather once
+        fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: "initial_gather" })
+        })
+        .then(res => res.json())
+        .then(data => console.log("Gather done:", data));
+    });
+
 </script>
 {% endblock %}

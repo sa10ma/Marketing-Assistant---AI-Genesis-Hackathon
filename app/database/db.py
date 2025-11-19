@@ -7,8 +7,11 @@ from fastapi import Depends
 
 
 # --- 1. Configuration ---
+POSTGRES_USER = os.environ.get("POSTGRES_USER")
+POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD")
+POSTGRES_DB = os.environ.get("POSTGRES_DB")
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
+DATABASE_URL = f"postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
 
 # Create the asynchronous engine
 engine = create_async_engine(DATABASE_URL, echo=True)

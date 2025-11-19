@@ -6,8 +6,8 @@ from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
 from fastapi import Depends, Request, HTTPException, status, Response
 from sqlmodel import select
-from app.database.db_schema import User 
-from app.database.db import SessionDep
+from ..database.db_schema import User 
+from ..database.db import SessionDep
 
 import bcrypt
 
